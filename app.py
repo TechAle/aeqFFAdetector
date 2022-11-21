@@ -4,7 +4,6 @@
     - reset variable inWars after a bit
     - Create thread for managing wars and unknown
     - Better ip blocking system
-        - If someone do too many requests
         - Illegal requests
     - Create database
     - People could increase their ffa count if they say that they are loosing
@@ -13,19 +12,42 @@
 
     NOTE: for now i havent run this code once. I have no idea if it works.
           I'm waiting for more code before testing it
+    - Take who is in war based on distance
 '''
-from flask import Flask, request
+import time
 
-from types.UnknownTerr import unknownTerr
-from types.WarInfo import warInfo
+from flask import Flask, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+from variables.AeqTerrs import aeqTerrs
+from variables.UnknownTerr import unknownTerr
+from variables.WarInfo import warInfo
 import threading
 
 app = Flask(__name__)
 wars = []
 blockedIp = []
 unkown = []
+players = {}
 inWars = False
+warTime = -1
+active = True
 lockWars = threading.Lock()
+terrs = aeqTerrs()
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    # Maybe it's too high, but eh who cares
+    default_limits=["99/minute"],
+    storage_uri="memory://",
+)
+
+
+def addIpBlocked(ip):
+    if not blockedIp.__contains__(ip):
+        blockedIp.append(ip)
 
 
 def isEmpty(string):
@@ -46,6 +68,7 @@ def limitUser(func):
             return "Yes"
 
     return wrap
+
 
 def warCheck(func):
     def wrap():
@@ -68,11 +91,42 @@ def playersInWar(players):
             return war
     return None
 
+
 def locationInWar(location):
     for war in wars:
         if war.location == location:
             return war
     return None
+
+
+'''
+    This is when someone get api limited
+    We dont wanna know other people that they are api limited, so just say "yes"
+'''
+
+
+@app.errorhandler(429)
+def ratelimit_handler():
+    addIpBlocked(request.remote_addr)
+    return "Yes"
+
+
+'''
+    This may not be sure, but i want this in case someone of us get banned
+'''
+
+
+@app.route('/discover', methods=['GET', 'POST'])
+@limiter.limit("4/minute")
+def discover():
+    player = request.args.get('player')
+    if request.method == 'GET' or isEmpty(players) or request.headers.get('test') is not None:
+        addIpBlocked(request.remote_addr)
+    else:
+        if not players.__contains__(player):
+            players[player] = []
+        players[player].append(request.remote_addr)
+
 
 '''
     This function is an extra confermation if
@@ -82,16 +136,22 @@ def locationInWar(location):
     
     Oh yeha and the route is test so that maybe people think it's useless :P
 '''
+
+
 @app.route('/test', methods=['GET', 'POST'])
 @limitUser
 def startWar(_):
     inWars = True
+    warTime = time.time()
     return "Yes"
+
 
 '''
     Params:
     - players
 '''
+
+
 @app.route('/startWar', methods=['GET', 'POST'])
 @warCheck
 @limitUser
@@ -119,6 +179,8 @@ def startWar(ip):
     - Players
     - Location
 '''
+
+
 @app.route('/endWar', methods=['GET', 'POST'])
 @warCheck
 @limitUser
@@ -157,5 +219,27 @@ def endWar(ip):
     return 'Yes'
 
 
+'''
+    Here we update variables, so:
+    - People that are doing ffa
+    - is War active
+'''
+
+
+def updateVariables():
+    global inWars
+    if inWars:
+        if time.time() - warTime > 60 * 6:
+            inWars = False
+
+
+def mainChecker():
+    while active:
+        terrs.update()
+        updateVariables()
+        time.sleep(10)
+
+
 if __name__ == '__main__':
+    threading.Thread(target=mainChecker).start()
     app.run()
