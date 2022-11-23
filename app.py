@@ -1,11 +1,11 @@
 """
     TODO:
-    - Create thread for managing wars and unknown
+    - Someone could start multiple wars, and be really fast, and i think this code would think
+        He is doing just 1 war
+    - Uknown is kinda useless rn
     - Better ip blocking system
         - Illegal requests
     - Create database
-    - People could increase their ffa count if they say that they are loosing
-        Kinda have to troubleshoot this
     - Check if multiple people are claiming the same terr
 
     NOTE: for now i havent run this code once. I have no idea if it works.
@@ -24,6 +24,12 @@ from variables.WarManager import warManager
 
 
 class Server:
+
+    # I wanna test everything by making simple get requests
+    STRICT = True
+    # And this for just some debugging things
+    DEBUG = True
+
     def __init__(self, name):
         self.app = Flask(name)
         self.limiter = Limiter(
@@ -50,7 +56,10 @@ class Server:
         @self.app.errorhandler(429)
         @self.limitUser
         def __index():
-            self.addIpBlocked(request.remote_addr)
+            if self.STRICT:
+                self.addIpBlocked(request.remote_addr)
+            if self.DEBUG:
+                print("Why are you here " + request.remote_addr)
             return "yes"
 
         '''
@@ -61,7 +70,7 @@ class Server:
         @self.limitUser
         def discover():
             player = request.args.get('player')
-            if request.method == 'GET' or self.isEmpty(self.players) or request.headers.get('test') is not None:
+            if self.STRICT and (request.method == 'GET' or self.isEmpty(self.players) or request.headers.get('test') is not None):
                 self.addIpBlocked(request.remote_addr)
             else:
                 if not self.players.__contains__(player):
@@ -70,6 +79,8 @@ class Server:
                         "count": 0
                     }
                 self.players[player]["ip"].append(request.remote_addr)
+                if self.DEBUG:
+                    print(player + ": " + request.remote_addr)
 
         '''
             This function is an extra confermation if
@@ -83,11 +94,13 @@ class Server:
         @self.app.route('/test', methods=['GET', 'POST'])
         @self.limitUser
         def test(ip):
-            if request.method == 'GET':
+            if self.STRICT and request.method == 'GET':
                 self.blockedIp.append(ip)
             else:
                 self.inWars = True
                 self.warTime = time.time()
+                if self.DEBUG:
+                    print("started war")
             return "Yes"
 
         '''
@@ -101,7 +114,7 @@ class Server:
         def startWar(ip):
             players = request.args.get('players')
             # Ban
-            if self.isEmpty(players) or request.method == 'GET':
+            if self.STRICT and (self.isEmpty(players) or request.method == 'GET'):
                 self.blockedIp.append(ip)
                 return "Yes"
 
@@ -109,9 +122,13 @@ class Server:
             listPlayers = players.split(",")
             if war := self.managerWar.playersInWar(listPlayers) is not None:
                 war.increasePreConfermation()
+                if self.DEBUG:
+                    print("Increased war")
             else:
                 # Else, just append it
                 self.managerWar.addWar(players.split(","), ip)
+                if self.DEBUG:
+                    print("New war " + players)
             return "Yes"
 
         '''
@@ -128,8 +145,9 @@ class Server:
             players = request.args.get('players')
             situation = request.args.get('situation')
             location = request.args.get('location')
-            # Have to think if this is bannable
-            if self.isEmpty(situation) or self.isEmpty(location) or request.method == 'POST':
+            # Ban.
+            if self.STRICT and (self.isEmpty(situation) or self.isEmpty(location) or request.method == 'POST'):
+                self.addIpBlocked(ip)
                 return "Yes"
             self.managerWar.feedback(players, situation, location, ip)
 
@@ -160,6 +178,7 @@ class Server:
     # region Utils
     def addIpBlocked(self, ip):
         if not self.blockedIp.__contains__(ip):
+            print("Banned " + ip)
             self.blockedIp.append(ip)
 
     @staticmethod

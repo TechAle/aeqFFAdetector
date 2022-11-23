@@ -5,8 +5,9 @@ import json
 
 class aeqTerrs:
 
-    ownedTerrs = []
-    newTerrs = {}
+    def __init__(self):
+        self.ownedTerrs = []
+        self.newTerrs = {}
 
     def update(self):
 

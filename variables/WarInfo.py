@@ -2,20 +2,19 @@ import time
 
 
 class warInfo:
+
     '''
         These are gonna be used for deciding if a terr we have lost the war
         Is gonna be used for counting or not
     '''
-    startConfermations = 0
-    endConfermations = 0
-    location = None
-    situation = False
-    players = []
-
     def __init__(self, players, ip):
         self.players = list(set(players))
         self.ip = ip
         self.start = time.time()
+        self.startConfermations = 0
+        self.endConfermations = 0
+        self.location = None
+        self.situation = False
 
     def increasePreConfermation(self):
         self.startConfermations += 1
@@ -25,3 +24,6 @@ class warInfo:
 
     def samePlayers(self, players):
         return set(players) == self.players
+
+    def __str__(self):
+        return f"{self.players} {self.location} {self.situation} {self.startConfermations} {self.endConfermations}"
