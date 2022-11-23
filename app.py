@@ -1,7 +1,5 @@
 """
     TODO:
-    - Someone could start multiple wars, and be really fast, and i think this code would think
-        He is doing just 1 war
     - Uknown is kinda useless rn
     - Better ip blocking system
         - Illegal requests
@@ -51,12 +49,13 @@ class Server:
         '''
         @self.app.route('/')
         @self.app.errorhandler(429)
+        @self.limitUser
         def __index():
             if globalVariables.STRICT:
                 self.addIpBlocked(request.remote_addr)
             if globalVariables.DEBUG:
                 print("Why are you here " + request.remote_addr)
-            return "Yes"
+            return "Index"
 
         '''
             This may not be sure, but i want this in case someone of us get banned
@@ -64,10 +63,10 @@ class Server:
         @self.app.route('/discover', methods=['GET', 'POST'])
         @self.limiter.limit("4/minute")
         @self.limitUser
-        def discover():
+        def discover(ip):
             player = request.args.get('player')
             if globalVariables.STRICT and (request.method == 'GET' or globalVariables.isEmpty(self.players) or request.headers.get('test') is not None):
-                self.addIpBlocked(request.remote_addr)
+                self.addIpBlocked(ip)
             else:
                 if not self.players.__contains__(player):
                     self.players[player] = {
@@ -77,6 +76,7 @@ class Server:
                 self.players[player]["ip"].append(request.remote_addr)
                 if globalVariables.DEBUG:
                     print(player + ": " + request.remote_addr)
+            return "Yes"
 
         '''
             This function is an extra confermation if
@@ -96,33 +96,35 @@ class Server:
                 self.inWars = True
                 self.warTime = time.time()
                 if globalVariables.DEBUG:
-                    print("started war")
+                    print("started war timer")
             return "Yes"
 
         '''
             Here we ban someone if they make a get request
             Params:
             - players
+            - location
         '''
         @self.app.route('/startWar', methods=['GET', 'POST'])
         @self.warCheck
         @self.limitUser
         def startWar(ip):
             players = request.args.get('players')
+            location = request.args.get('location')
             # Ban
-            if globalVariables.STRICT and (globalVariables.isEmpty(players) or request.method == 'GET'):
+            if globalVariables.STRICT and (globalVariables.isEmpty(players) or globalVariables.isEmpty(location) or request.method == 'GET'):
                 self.blockedIp.append(ip)
                 return "Yes"
 
             # If we already have it in the war list then we know they are both in war
             listPlayers = players.split(",")
-            if war := self.managerWar.playersInWar(listPlayers) is not None:
+            if (war := self.managerWar.locationInWar(location)) is not None:
                 war.increasePreConfermation()
                 if globalVariables.DEBUG:
-                    print("Increased war")
+                    print("Increased war " + war)
             else:
                 # Else, just append it
-                self.managerWar.addWar(players.split(","), ip)
+                self.managerWar.addWar(players, ip, location)
                 if globalVariables.DEBUG:
                     print("New war " + players)
             return "Yes"
@@ -181,11 +183,11 @@ class Server:
 
     # region Wrappers
     def limitUser(self, func):
-        def wrap():
+        def wrap(_=None):
             if not self.blockedIp.__contains__(request.remote_addr):
                 # If the header doesnt have the "test" tag we know it's somekind of artificial request
-                if request.headers.get('test') is not None:
-                    func(self, request.remote_addr)
+                if not globalVariables.STRICT or request.headers.get('test') is not None:
+                    return func(request.remote_addr)
                 else:
                     self.blockedIp.append(request.remote_addr)
                     return "Yes"
@@ -197,10 +199,10 @@ class Server:
         return wrap
 
     def warCheck(self, func):
-        def wrap():
+        def wrap(_=None):
             if not self.blockedIp.__contains__(request.remote_addr):
                 if self.inWars:
-                    func(self, request.remote_addr)
+                    return func(request.remote_addr)
                 else:
                     self.blockedIp.append(request.remote_addr)
                     return "Yes"

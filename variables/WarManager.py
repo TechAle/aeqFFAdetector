@@ -15,9 +15,9 @@ class warManager:
         self.endedWars = []
         self.unkownEndedWars = []
 
-    def addWar(self, players, ip):
+    def addWar(self, players, ip, location):
         self.lockWars.acquire()
-        self.startedWars.append(warInfo(players.split(","), ip))
+        self.startedWars.append(warInfo(players.split(","), ip, location))
         self.lockWars.release()
 
     '''
@@ -28,7 +28,7 @@ class warManager:
         # If it's empty, then the message is from someone that is not in war
         if globalVariables.isEmpty(players):
             # If it's from someone in chat, increase post
-            if war := self.locationInWar(location) is not None:
+            if (war := self.locationInWar(location)) is not None:
                 self.lockWars.acquire()
                 war.increasePostConfermation()
                 self.lockWars.release()
@@ -43,10 +43,10 @@ class warManager:
         else:
             listPlayers = players.split(",")
             # Get the war, this should always be true
-            if war := self.playersInWar(listPlayers) is not None:
+            if (war := self.playersInWar(listPlayers)) is not None:
                 self.lockWars.acquire()
                 # If it's the first time, set location and win
-                if war.location is not None:
+                if war.situation is not None:
                     war.location = location
                     war.win = True
                     # Now we need to remove war from the startedWar and put it in endedWar
