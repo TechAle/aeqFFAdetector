@@ -9,9 +9,11 @@ class warInfo:
     startConfermations = 0
     endConfermations = 0
     location = None
+    situation = False
+    players = []
 
     def __init__(self, players, ip):
-        self.players = set(players)
+        self.players = list(set(players))
         self.ip = ip
         self.start = time.time()
 

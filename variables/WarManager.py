@@ -19,6 +19,10 @@ class warManager:
         self.startedWars.append(warInfo(players.split(","), ip))
         self.lockWars.release()
 
+    '''
+        This function get called when someone finish a war.
+        It's needed for updating started wars into ended wars with the correct way
+    '''
     def feedback(self, players, situation, location, ip):
         # If it's empty, then the message is from someone that is not in war
         if app.Server.isEmpty(players):
@@ -40,11 +44,54 @@ class warManager:
                 if war.location is not None:
                     war.location = location
                     war.win = True
+                    # Now we need to remove war from the startedWar and put it in endedWar
+                    self.endedWars.append(war)
+                    self.startedWars.remove(self.startedWars.index(war))
                 # Else, increase confermation
                 else:
                     war.increasePostConfermation()
                 self.lockWars.release()
 
+    '''
+        This function return a list with players that have
+        done an ffa
+    '''
+    def ffaUpdate(self):
+        players = []
+        for i in range(self.endedWars.__len__()):
+            add = False
+            if self.endedWars[i].terr.situation:
+                if self.wonTerrChecker(self.endedWars[i]):
+                    add = True
+            elif self.lostTerrChecker(self.endedWars[i]):
+                add = True
+            if add:
+                players.extend(self.endedWars[i].players)
+                self.endedWars.remove(i)
+                i -= 1
+
+        return players
+
+    '''
+        For wars that we won we just check if we have just got that terr
+    '''
+    def wonTerrChecker(self, war):
+        if self.terrPointer.newTerrs.keys().__contains__(war.location):
+            return True
+        return False
+
+    '''
+        For wars we lost, we need:
+        1) At least 2 people must be on that war
+        2) At least 3 people must confirm that the war has ended
+    '''
+    @staticmethod
+    def lostTerrChecker(war):
+        return 1 < war.startConfermations < war.endConfermations
+
+    '''
+        Util that, given a list of players, check if these players are in somekind of war
+    '''
     def playersInWar(self, players):
         for war in self.startedWars:
             if war.samePlayers(players):
@@ -54,6 +101,9 @@ class warManager:
                 return war
         return None
 
+    '''
+        Givena  location, return the war with that location    
+    '''
     def locationInWar(self, location):
         for war in self.endedWars:
             if war.location == location:

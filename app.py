@@ -1,4 +1,4 @@
-'''
+"""
     TODO:
     - Create thread for managing wars and unknown
     - Better ip blocking system
@@ -11,7 +11,7 @@
     NOTE: for now i havent run this code once. I have no idea if it works.
           I'm waiting for more code before testing it
     - Take who is in war based on distance
-'''
+"""
 import threading
 import time
 
@@ -65,8 +65,11 @@ class Server:
                 self.addIpBlocked(request.remote_addr)
             else:
                 if not self.players.__contains__(player):
-                    self.players[player] = []
-                self.players[player].append(request.remote_addr)
+                    self.players[player] = {
+                        "ip": [],
+                        "count": 0
+                    }
+                self.players[player]["ip"].append(request.remote_addr)
 
         '''
             This function is an extra confermation if
@@ -132,18 +135,29 @@ class Server:
 
             return 'Yes'
 
-    def updateVariables(self):
-        if self.inWars:
-            if time.time() - self.warTime > 60 * 6:
-                self.inWars = False
-
+    # Main function that update aeq terrs and war variables
     def mainChecker(self):
         while self.active:
             self.terrs.update()
             self.updateVariables()
             time.sleep(10)
 
-    #region Utils
+    '''
+        Function that
+        - Reset the inWars variable after 6 minutes nobody has done a war
+        - Get every people that did an ffa, and increase the counter
+    '''
+    def updateVariables(self):
+        if self.inWars:
+            if time.time() - self.warTime > 60 * 6:
+                self.inWars = False
+            players = self.managerWar.ffaUpdate()
+            for player in players:
+                if self.players.__contains__(player):
+                    self.players[player]["counter"] += 1
+
+
+    # region Utils
     def addIpBlocked(self, ip):
         if not self.blockedIp.__contains__(ip):
             self.blockedIp.append(ip)
@@ -152,14 +166,11 @@ class Server:
     def isEmpty(string):
         return string is not None and string.__len__() > 0
 
+    # endregion
 
-
-    #endregion
-
-
-    #region Wrappers
+    # region Wrappers
     def limitUser(self, func):
-        def wrap(*args, **kwargs):
+        def wrap():
             if not self.blockedIp.__contains__(request.remote_addr):
                 # If the header doesnt have the "test" tag we know it's somekind of artificial request
                 if request.headers.get('test') is not None:
@@ -170,11 +181,12 @@ class Server:
             else:
                 # We always return yes so that people have no idea if they have been banned or not
                 return "Yes"
+
         wrap.__name__ = func.__name__
         return wrap
 
     def warCheck(self, func):
-        def wrap(*args, **kwargs):
+        def wrap():
             if not self.blockedIp.__contains__(request.remote_addr):
                 if self.inWars:
                     func(self, request.remote_addr)
@@ -183,9 +195,11 @@ class Server:
                     return "Yes"
             else:
                 return "Yes"
+
         wrap.__name__ = func.__name__
         return wrap
-    #endregion
+
+    # endregion
 
     def run(self, host, port):
         threading.Thread(target=self.mainChecker).start()
