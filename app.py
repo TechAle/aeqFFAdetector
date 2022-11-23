@@ -19,16 +19,13 @@ from flask import Flask, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from Globals import globalVariables
 from variables.AeqTerrs import aeqTerrs
 from variables.WarManager import warManager
 
 
 class Server:
 
-    # I wanna test everything by making simple get requests
-    STRICT = True
-    # And this for just some debugging things
-    DEBUG = True
 
     def __init__(self, name):
         self.app = Flask(name)
@@ -54,13 +51,12 @@ class Server:
         '''
         @self.app.route('/')
         @self.app.errorhandler(429)
-        @self.limitUser
         def __index():
-            if self.STRICT:
+            if globalVariables.STRICT:
                 self.addIpBlocked(request.remote_addr)
-            if self.DEBUG:
+            if globalVariables.DEBUG:
                 print("Why are you here " + request.remote_addr)
-            return "yes"
+            return "Yes"
 
         '''
             This may not be sure, but i want this in case someone of us get banned
@@ -70,7 +66,7 @@ class Server:
         @self.limitUser
         def discover():
             player = request.args.get('player')
-            if self.STRICT and (request.method == 'GET' or self.isEmpty(self.players) or request.headers.get('test') is not None):
+            if globalVariables.STRICT and (request.method == 'GET' or globalVariables.isEmpty(self.players) or request.headers.get('test') is not None):
                 self.addIpBlocked(request.remote_addr)
             else:
                 if not self.players.__contains__(player):
@@ -79,7 +75,7 @@ class Server:
                         "count": 0
                     }
                 self.players[player]["ip"].append(request.remote_addr)
-                if self.DEBUG:
+                if globalVariables.DEBUG:
                     print(player + ": " + request.remote_addr)
 
         '''
@@ -94,12 +90,12 @@ class Server:
         @self.app.route('/test', methods=['GET', 'POST'])
         @self.limitUser
         def test(ip):
-            if self.STRICT and request.method == 'GET':
+            if globalVariables.STRICT and request.method == 'GET':
                 self.blockedIp.append(ip)
             else:
                 self.inWars = True
                 self.warTime = time.time()
-                if self.DEBUG:
+                if globalVariables.DEBUG:
                     print("started war")
             return "Yes"
 
@@ -114,7 +110,7 @@ class Server:
         def startWar(ip):
             players = request.args.get('players')
             # Ban
-            if self.STRICT and (self.isEmpty(players) or request.method == 'GET'):
+            if globalVariables.STRICT and (globalVariables.isEmpty(players) or request.method == 'GET'):
                 self.blockedIp.append(ip)
                 return "Yes"
 
@@ -122,12 +118,12 @@ class Server:
             listPlayers = players.split(",")
             if war := self.managerWar.playersInWar(listPlayers) is not None:
                 war.increasePreConfermation()
-                if self.DEBUG:
+                if globalVariables.DEBUG:
                     print("Increased war")
             else:
                 # Else, just append it
                 self.managerWar.addWar(players.split(","), ip)
-                if self.DEBUG:
+                if globalVariables.DEBUG:
                     print("New war " + players)
             return "Yes"
 
@@ -146,7 +142,7 @@ class Server:
             situation = request.args.get('situation')
             location = request.args.get('location')
             # Ban.
-            if self.STRICT and (self.isEmpty(situation) or self.isEmpty(location) or request.method == 'POST'):
+            if globalVariables.STRICT and (globalVariables.isEmpty(situation) or globalVariables.isEmpty(location) or request.method == 'POST'):
                 self.addIpBlocked(ip)
                 return "Yes"
             self.managerWar.feedback(players, situation, location, ip)
@@ -180,10 +176,6 @@ class Server:
         if not self.blockedIp.__contains__(ip):
             print("Banned " + ip)
             self.blockedIp.append(ip)
-
-    @staticmethod
-    def isEmpty(string):
-        return string is not None and string.__len__() > 0
 
     # endregion
 
