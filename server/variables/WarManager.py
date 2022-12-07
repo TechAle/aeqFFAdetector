@@ -1,8 +1,7 @@
 import threading
 
-from Globals import globalVariables
-from variables.UnknownTerr import unknownTerr
-from variables.WarInfo import warInfo
+from server.Globals import globalVariables
+from server.variables.WarInfo import warInfo
 
 
 class warManager:
