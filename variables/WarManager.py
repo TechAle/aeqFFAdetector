@@ -13,7 +13,6 @@ class warManager:
         self.terrPointer = terrPointer
         self.startedWars = []
         self.endedWars = []
-        self.unkownEndedWars = []
 
     def addWar(self, players, ip, location):
         self.lockWars.acquire()
@@ -33,12 +32,11 @@ class warManager:
                 war.increasePostConfermation()
                 self.lockWars.release()
                 if globalVariables.DEBUG:
-                    print("Chat increase:" + war)
+                    print("War increase: " + str(war))
             # Else, we'll think about it later
             else:
-                self.unkownEndedWars.append(unknownTerr(location, ip, True if situation == "win" else False))
                 if globalVariables.DEBUG:
-                    print("Uknwon add: " + war)
+                    print("Uknwon terr: " + location + " players: " + players + " ip: " + ip)
         # If it's not empty then we are in war
         else:
             listPlayers = players.split(",")
@@ -46,19 +44,19 @@ class warManager:
             if (war := self.playersInWar(listPlayers)) is not None:
                 self.lockWars.acquire()
                 # If it's the first time, set location and win
-                if war.situation is not None:
+                if war.situation is None:
                     war.location = location
-                    war.win = True
+                    war.situation = True
                     # Now we need to remove war from the startedWar and put it in endedWar
                     self.endedWars.append(war)
-                    self.startedWars.remove(self.startedWars.index(war))
+                    self.startedWars.pop(self.startedWars.index(war))
                     if globalVariables.DEBUG:
-                        print("War confirmed pre: " + war)
+                        print("War confirmed pre: " + str(war))
                 # Else, increase confermation
                 else:
                     war.increasePostConfermation()
                     if globalVariables.DEBUG:
-                        print("War confirmed post: " + war)
+                        print("War confirmed post: " + str(war))
                 self.lockWars.release()
 
     '''
@@ -66,21 +64,22 @@ class warManager:
         done an ffa
     '''
     def ffaUpdate(self):
+        self.lockWars.acquire()
         players = []
         for i in range(self.endedWars.__len__()):
             add = False
-            if self.endedWars[i].terr.situation:
-                if self.wonTerrChecker(self.endedWars[i]):
+            if self.endedWars[i].situation:
+                if self.wonTerrChecker(self.endedWars[i]) or globalVariables.DEBUG:
                     add = True
             elif self.lostTerrChecker(self.endedWars[i]):
                 add = True
             if add:
                 if globalVariables.DEBUG:
-                    print("War finished: " + self.endedWars[i])
+                    print("War finished: " + str(self.endedWars[i]))
                 players.extend(self.endedWars[i].players)
-                self.endedWars.remove(i)
+                self.endedWars.pop(i)
                 i -= 1
-
+        self.lockWars.release()
         return players
 
     '''
@@ -116,7 +115,10 @@ class warManager:
         Givena  location, return the war with that location    
     '''
     def locationInWar(self, location):
-        for war in self.endedWars:
+        wars = []
+        wars.extend(self.startedWars)
+        wars.extend(self.endedWars)
+        for war in wars:
             if war.location == location:
                 return war
         return None

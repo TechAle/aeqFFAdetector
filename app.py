@@ -1,10 +1,6 @@
 """
     TODO:
-    - Uknown is kinda useless rn
-    - Better ip blocking system
-        - Illegal requests
     - Create database
-    - Check if multiple people are claiming the same terr
 
     NOTE: for now i havent run this code once. I have no idea if it works.
           I'm waiting for more code before testing it
@@ -19,6 +15,7 @@ from flask_limiter.util import get_remote_address
 
 from Globals import globalVariables
 from variables.AeqTerrs import aeqTerrs
+from variables.SpamManager import spamManager
 from variables.WarManager import warManager
 
 
@@ -41,6 +38,7 @@ class Server:
         self.active = True
         self.terrs = aeqTerrs()
         self.managerWar = warManager(self.terrs)
+        self.managerSpam = spamManager()
 
         '''
             Why would anyone go to the index?
@@ -110,23 +108,29 @@ class Server:
         @self.limitUser
         def startWar(ip):
             players = request.args.get('players')
-            location = request.args.get('location')
+            location = request.args.get('terr')
             # Ban
             if globalVariables.STRICT and (globalVariables.isEmpty(players) or globalVariables.isEmpty(location) or request.method == 'GET'):
+                if globalVariables.DEBUG:
+                    print("A guy spammed a bit " + ip)
                 self.blockedIp.append(ip)
                 return "Yes"
 
             # If we already have it in the war list then we know they are both in war
-            listPlayers = players.split(",")
             if (war := self.managerWar.locationInWar(location)) is not None:
                 war.increasePreConfermation()
                 if globalVariables.DEBUG:
                     print("Increased war " + war)
             else:
-                # Else, just append it
-                self.managerWar.addWar(players, ip, location)
-                if globalVariables.DEBUG:
-                    print("New war " + players)
+                # And also spam manager
+                if self.managerSpam.isSpamming(ip, 0):
+                    self.blockedIp.append(ip)
+                    return "Yes"
+                else:
+                    # Else, just append it
+                    self.managerWar.addWar(players, ip, location)
+                    if globalVariables.DEBUG:
+                        print("New war " + players)
             return "Yes"
 
         '''
@@ -164,6 +168,7 @@ class Server:
         - Get every people that did an ffa, and increase the counter
     '''
     def updateVariables(self):
+        self.managerSpam.update()
         if self.inWars:
             if time.time() - self.warTime > 60 * 6:
                 self.inWars = False
@@ -221,7 +226,7 @@ class Server:
 
 def main():
     server = Server(__name__)
-    server.run(host='0.0.0.0', port=5000)
+    server.run(host='127.0.0.1', port=5000)
 
 
 if __name__ == '__main__':

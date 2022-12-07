@@ -6,4 +6,4 @@ class globalVariables:
 
     @staticmethod
     def isEmpty(string):
-        return string is not None and string.__len__() > 0
+        return string is None or string.__len__() == 0
