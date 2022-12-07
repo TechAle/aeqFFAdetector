@@ -1,5 +1,6 @@
 package com.example.examplemod.utils;
 
+import com.example.examplemod.eventsForge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.text.TextComponentString;
 
@@ -20,13 +21,16 @@ public class requestsUtil {
      */
     public static void makeRequest(String args, boolean type) {
         try {
-            if (Minecraft.getMinecraft().player != null)
+            // Just for debugging
+            if (Minecraft.getMinecraft().player != null && eventsForge.DEBUG)
                 sendClientMessage("Sent packet " + ip + args + " with " + (type ? "GET" : "POST"));
+
 
             URL url = new URL(ip + args);
 
             HttpURLConnection conn = (HttpURLConnection)url.openConnection();
             conn.setRequestMethod(type ? "GET" : "POST");
+            // Boring stuff that are required for a requests
             for (String[] header : new String[][]{
                     {"Accept", "Text/html"},
                     {"Cache-Control", "no-cache"},
@@ -36,6 +40,7 @@ public class requestsUtil {
             }) {
                 conn.setRequestProperty(header[0], header[1]);
             }
+            // Send!
             conn.getInputStream();
         } catch (Exception e) {
             e.printStackTrace();
