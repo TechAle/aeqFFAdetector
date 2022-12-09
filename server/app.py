@@ -120,7 +120,7 @@ class Server:
             if (war := self.managerWar.locationInWar(location)) is not None:
                 war.increasePreConfermation()
                 if globalVariables.DEBUG:
-                    print("Increased war " + war)
+                    print("Increased war " + str(war))
             else:
                 # And also spam manager
                 if self.managerSpam.isSpamming(ip, 0):
@@ -145,7 +145,7 @@ class Server:
         @self.limitUser
         def endWar(ip):
             players = request.args.get('players')
-            situation = request.args.get('situation')
+            situation = request.args.get('situation') == 'true'
             location = request.args.get('location')
             # Ban.
             if globalVariables.STRICT and (globalVariables.isEmpty(situation) or globalVariables.isEmpty(location) or request.method == 'POST'):

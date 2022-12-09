@@ -27,6 +27,12 @@ class warManager:
         if globalVariables.isEmpty(players):
             # If it's from someone in chat, increase post
             if (war := self.locationInWar(location)) is not None:
+                # If we lost
+                if not situation:
+                    # TODO: this makes the server crash lol
+                    if self.endedWars.index(war) == -1:
+                        self.endedWars.append(war)
+                        self.startedWars.pop(self.startedWars.index(war))
                 self.lockWars.acquire()
                 war.increasePostConfermation()
                 self.lockWars.release()

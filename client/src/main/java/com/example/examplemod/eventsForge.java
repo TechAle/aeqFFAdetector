@@ -177,10 +177,11 @@ public class eventsForge {
             // L we lost
             } else if(message.contains("has lost the war") && doneWar) {
                 String terr = message.substring(message.indexOf("for") + "for".length());
-                terr = terr.substring(0, terr.length() - 1);
+                terr = terr.substring(1, terr.length() - 1);
                 terr = terr.replace(" ", "_");
-                // Log that we lost so that we can create that funny thing for bullying peter
-                requestsUtil.makeRequest("endWar?situation=false&location=" + terr);
+                if (!terr.contains("]"))
+                    // Log that we lost so that we can create that funny thing for bullying peter
+                    requestsUtil.makeRequest("endWar?situation=false&location=" + terr);
 
             }
         }
