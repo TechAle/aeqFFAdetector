@@ -1,10 +1,8 @@
 """
     TODO:
     - Create database
+    - Make so that people get banned if they make multiple of the same request
 
-    NOTE: for now i havent run this code once. I have no idea if it works.
-          I'm waiting for more code before testing it
-    - Take who is in war based on distance
 """
 import threading
 import time
@@ -50,7 +48,7 @@ class Server:
         @self.limitUser
         def __index():
             if globalVariables.STRICT:
-                self.addIpBlocked(request.remote_addr)
+                self.addIpBlocked(request.remote_addr, "He is in the index")
             if globalVariables.DEBUG:
                 print("Why are you here " + request.remote_addr)
             return "Index"
@@ -64,7 +62,7 @@ class Server:
         def discover(ip):
             player = request.args.get('player')
             if globalVariables.STRICT and (request.method == 'GET' or globalVariables.isEmpty(self.players) or request.headers.get('test') is not None):
-                self.addIpBlocked(ip)
+                self.addIpBlocked(ip, "Wrong discover requests")
             else:
                 if not self.players.__contains__(player):
                     self.players[player] = {
@@ -89,7 +87,7 @@ class Server:
         @self.limitUser
         def test(ip):
             if globalVariables.STRICT and request.method == 'GET':
-                self.blockedIp.append(ip)
+                self.addIpBlocked(ip, "Wrong test requests")
             else:
                 self.inWars = True
                 self.warTime = time.time()
@@ -104,6 +102,7 @@ class Server:
             - location
         '''
         @self.app.route('/startWar', methods=['GET', 'POST'])
+        @self.limiter.limit("20/minute")
         @self.warCheck
         @self.limitUser
         def startWar(ip):
@@ -111,9 +110,7 @@ class Server:
             location = request.args.get('terr')
             # Ban
             if globalVariables.STRICT and (globalVariables.isEmpty(players) or globalVariables.isEmpty(location) or request.method == 'GET'):
-                if globalVariables.DEBUG:
-                    print("A guy spammed a bit " + ip)
-                self.blockedIp.append(ip)
+                self.addIpBlocked(ip, "Wrong start war request")
                 return "Yes"
 
             # If we already have it in the war list then we know they are both in war
@@ -122,15 +119,10 @@ class Server:
                 if globalVariables.DEBUG:
                     print("Increased war " + str(war))
             else:
-                # And also spam manager
-                if self.managerSpam.isSpamming(ip, 0):
-                    self.blockedIp.append(ip)
-                    return "Yes"
-                else:
-                    # Else, just append it
-                    self.managerWar.addWar(players, ip, location)
-                    if globalVariables.DEBUG:
-                        print("New war " + players)
+                # Else, just append it
+                self.managerWar.addWar(players, ip, location)
+                if globalVariables.DEBUG:
+                    print("New war " + players)
             return "Yes"
 
         '''
@@ -149,7 +141,7 @@ class Server:
             location = request.args.get('location')
             # Ban.
             if globalVariables.STRICT and (globalVariables.isEmpty(situation) or globalVariables.isEmpty(location) or request.method == 'POST'):
-                self.addIpBlocked(ip)
+                self.addIpBlocked(ip, "Wrong endwar requests")
                 return "Yes"
             self.managerWar.feedback(players, situation, location, ip)
 
@@ -179,8 +171,9 @@ class Server:
 
 
     # region Utils
-    def addIpBlocked(self, ip):
+    def addIpBlocked(self, ip, reason = ""):
         if not self.blockedIp.__contains__(ip):
+            print(reason)
             print("Banned " + ip)
             self.blockedIp.append(ip)
 
@@ -194,7 +187,7 @@ class Server:
                 if not globalVariables.STRICT or request.headers.get('test') is not None:
                     return func(request.remote_addr)
                 else:
-                    self.blockedIp.append(request.remote_addr)
+                    self.addIpBlocked(request.remote_addr, "Api limited")
                     return "Yes"
             else:
                 # We always return yes so that people have no idea if they have been banned or not
@@ -209,7 +202,7 @@ class Server:
                 if self.inWars:
                     return func(request.remote_addr)
                 else:
-                    self.blockedIp.append(request.remote_addr)
+                    self.addIpBlocked(request.remote_addr, "Started a war without test before")
                     return "Yes"
             else:
                 return "Yes"

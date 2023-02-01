@@ -1,4 +1,5 @@
 import threading
+import time
 
 from server.Globals import globalVariables
 from server.variables.WarInfo import warInfo
@@ -84,6 +85,12 @@ class warManager:
                 players.extend(self.endedWars[i].players)
                 self.endedWars.pop(i)
                 i -= 1
+            else:
+                # Time checker
+                if time.time() - self.endedWars[i].start >= 60*60*5:
+                    # SUS
+                    print("Sus")
+                pass
         self.lockWars.release()
         return players
 
@@ -97,12 +104,11 @@ class warManager:
 
     '''
         For wars we lost, we need:
-        1) At least 2 people must be on that war
-        2) At least 3 people must confirm that the war has ended
+        1) There must be more peo
     '''
     @staticmethod
     def lostTerrChecker(war):
-        return 1 < war.startConfermations < war.endConfermations
+        return war.startConfermations < war.endConfermations
 
     '''
         Util that, given a list of players, check if these players are in somekind of war
