@@ -6,6 +6,7 @@
 """
 import threading
 import time
+from datetime import datetime
 
 from flask import Flask, request
 from flask_limiter import Limiter
@@ -21,6 +22,7 @@ class Server:
 
     def __init__(self, name):
         self.app = Flask(name)
+        self.didBackup = False
         self.limiter = Limiter(
             key_func=get_remote_address,
             app=self.app,
@@ -160,7 +162,15 @@ class Server:
         while self.active:
             self.terrs.update()
             self.updateVariables()
+            self.saveInformations()
             time.sleep(10)
+
+    def saveInformations(self):
+        if datetime.now().minute <= 2:
+            if not self.didBackup:
+                pass
+        elif self.didBackup:
+            self.didBackup = False
 
     '''
         Function that
