@@ -1,8 +1,8 @@
 import threading
 import time
 
-from server.Globals import globalVariables
-from server.variables.WarInfo import warInfo
+from Globals import globalVariables
+from variables.WarInfo import warInfo
 
 
 class warManager:

@@ -11,10 +11,10 @@ from flask import Flask, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from server.Globals import globalVariables
-from server.variables.AeqTerrs import aeqTerrs
-from server.variables.SpamManager import spamManager
-from server.variables.WarManager import warManager
+from Globals import globalVariables
+from variables.AeqTerrs import aeqTerrs
+from variables.SpamManager import spamManager
+from variables.WarManager import warManager
 
 
 class Server:
