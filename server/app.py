@@ -11,20 +11,19 @@ from flask import Flask, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from Globals import globalVariables
-from variables.AeqTerrs import aeqTerrs
-from variables.SpamManager import spamManager
-from variables.WarManager import warManager
+from server.Globals import globalVariables
+from server.variables.AeqTerrs import aeqTerrs
+from server.variables.SpamManager import spamManager
+from server.variables.WarManager import warManager
 
 
 class Server:
 
-
     def __init__(self, name):
         self.app = Flask(name)
         self.limiter = Limiter(
-            self.app,
             key_func=get_remote_address,
+            app=self.app,
             # Maybe it's too high, but eh who cares
             default_limits=["99/minute"],
             storage_uri="memory://",
@@ -43,6 +42,7 @@ class Server:
             Because he is testing! 
             Oh yeha we also redirect who get rate limited
         '''
+
         @self.app.route('/')
         @self.app.errorhandler(429)
         @self.limitUser
@@ -56,12 +56,15 @@ class Server:
         '''
             This may not be sure, but i want this in case someone of us get banned
         '''
+
         @self.app.route('/discover', methods=['GET', 'POST'])
         @self.limiter.limit("4/minute")
         @self.limitUser
         def discover(ip):
             player = request.args.get('player')
-            if globalVariables.STRICT and (request.method == 'GET' or globalVariables.isEmpty(self.players) or request.headers.get('test') is not None):
+            if globalVariables.STRICT and (
+                    request.method == 'GET' or globalVariables.isEmpty(self.players) or request.headers.get(
+                    'test') is not None):
                 self.addIpBlocked(ip, "Wrong discover requests")
             else:
                 if not self.players.__contains__(player):
@@ -83,6 +86,7 @@ class Server:
             Oh yeha and the route is test so that maybe people think it's useless :P
             Here we ban if the request is get
         '''
+
         @self.app.route('/test', methods=['GET', 'POST'])
         @self.limitUser
         def test(ip):
@@ -101,6 +105,7 @@ class Server:
             - players
             - location
         '''
+
         @self.app.route('/startWar', methods=['GET', 'POST'])
         @self.limiter.limit("20/minute")
         @self.warCheck
@@ -109,7 +114,8 @@ class Server:
             players = request.args.get('players')
             location = request.args.get('terr')
             # Ban
-            if globalVariables.STRICT and (globalVariables.isEmpty(players) or globalVariables.isEmpty(location) or request.method == 'GET'):
+            if globalVariables.STRICT and (
+                    globalVariables.isEmpty(players) or globalVariables.isEmpty(location) or request.method == 'GET'):
                 self.addIpBlocked(ip, "Wrong start war request")
                 return "Yes"
 
@@ -132,6 +138,7 @@ class Server:
             - Players
             - Location
         '''
+
         @self.app.route('/endWar', methods=['GET', 'POST'])
         @self.warCheck
         @self.limitUser
@@ -140,7 +147,8 @@ class Server:
             situation = request.args.get('situation') == 'true'
             location = request.args.get('location')
             # Ban.
-            if globalVariables.STRICT and (globalVariables.isEmpty(situation) or globalVariables.isEmpty(location) or request.method == 'POST'):
+            if globalVariables.STRICT and (globalVariables.isEmpty(situation) or globalVariables.isEmpty(
+                    location) or request.method == 'POST'):
                 self.addIpBlocked(ip, "Wrong endwar requests")
                 return "Yes"
             self.managerWar.feedback(players, situation, location, ip)
@@ -159,6 +167,7 @@ class Server:
         - Reset the inWars variable after 6 minutes nobody has done a war
         - Get every people that did an ffa, and increase the counter
     '''
+
     def updateVariables(self):
         self.managerSpam.update()
         if self.inWars:
@@ -169,9 +178,8 @@ class Server:
                 if self.players.__contains__(player):
                     self.players[player]["counter"] += 1
 
-
     # region Utils
-    def addIpBlocked(self, ip, reason = ""):
+    def addIpBlocked(self, ip, reason=""):
         if not self.blockedIp.__contains__(ip):
             print(reason)
             print("Banned " + ip)
